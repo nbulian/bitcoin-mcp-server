@@ -1,12 +1,13 @@
 """Input validation utilities."""
 
 import re
+import hashlib
+import base58
 from typing import Union
-from bitcoinlib.encoding import addr_to_pubkeyhash, EncodingError
 
 def validate_bitcoin_address(address: str, network: str = "mainnet") -> bool:
     """
-    Validate Bitcoin address format.
+    Validate Bitcoin address format using pure Python.
     
     Args:
         address: Bitcoin address to validate
@@ -24,10 +25,38 @@ def validate_bitcoin_address(address: str, network: str = "mainnet") -> bool:
         if len(address) < 26 or len(address) > 62:  # Including bech32
             return False
         
-        # Use bitcoinlib for validation
-        addr_to_pubkeyhash(address)
+        # Check for valid characters
+        if not re.match(r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^bc1[a-z0-9]{39,59}$', address):
+            return False
+        
+        # For legacy addresses (starting with 1 or 3), validate checksum
+        if address.startswith(('1', '3')):
+            try:
+                # Decode base58 and validate checksum
+                decoded = base58.b58decode(address)
+                if len(decoded) != 25:  # 21 bytes payload + 4 bytes checksum
+                    return False
+                
+                # Verify checksum
+                payload = decoded[:-4]
+                checksum = decoded[-4:]
+                calculated_checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
+                
+                if checksum != calculated_checksum:
+                    return False
+                    
+            except Exception:
+                return False
+        
+        # For bech32 addresses (starting with bc1), basic format validation
+        elif address.startswith('bc1'):
+            # Basic bech32 format check - more comprehensive validation would require bech32 library
+            if not re.match(r'^bc1[a-z0-9]{39,59}$', address):
+                return False
+        
         return True
-    except (EncodingError, ValueError, Exception):
+        
+    except Exception:
         return False
 
 def validate_transaction_hash(tx_hash: str) -> bool:

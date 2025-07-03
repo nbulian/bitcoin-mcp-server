@@ -4,4 +4,4 @@ httpx==0.25.2
 python-dotenv==1.0.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
-bitcoinlib==0.7.4
+base58==2.1.1
