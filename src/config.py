@@ -2,8 +2,7 @@
 
 import os
 from typing import Optional
-from pydantic_settings import BaseSettings
-from pydantic import validator
+from pydantic import BaseModel, validator
 from enum import Enum
 
 class NetworkType(str, Enum):
@@ -11,7 +10,7 @@ class NetworkType(str, Enum):
     TESTNET = "testnet"
     REGTEST = "regtest"
 
-class Config(BaseSettings):
+class Config(BaseModel):
     """Application configuration."""
     
     # Server Configuration
@@ -34,15 +33,28 @@ class Config(BaseSettings):
     BLOCKCHAIR_API_KEY: Optional[str] = None
     MEMPOOL_SPACE_API_URL: str = "https://mempool.space/api"
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-    
     @validator('BITCOIN_RPC_URL')
     def validate_rpc_url(cls, v):
         if not v.startswith(('http://', 'https://')):
             raise ValueError('Bitcoin RPC URL must start with http:// or https://')
         return v
 
+def load_config() -> Config:
+    """Load configuration from environment variables."""
+    return Config(
+        HOST=os.getenv('HOST', '0.0.0.0'),
+        PORT=int(os.getenv('PORT', '8000')),
+        DEBUG=os.getenv('DEBUG', 'false').lower() == 'true',
+        BITCOIN_RPC_URL=os.getenv('BITCOIN_RPC_URL', 'https://bitcoin.two.nono.casa/'),
+        BITCOIN_RPC_USER=os.getenv('BITCOIN_RPC_USER', 'user'),
+        BITCOIN_RPC_PASSWORD=os.getenv('BITCOIN_RPC_PASSWORD', 'pass'),
+        BITCOIN_NETWORK=NetworkType(os.getenv('BITCOIN_NETWORK', 'mainnet')),
+        REQUEST_TIMEOUT=int(os.getenv('REQUEST_TIMEOUT', '30')),
+        MAX_RETRIES=int(os.getenv('MAX_RETRIES', '3')),
+        RATE_LIMIT_PER_MINUTE=int(os.getenv('RATE_LIMIT_PER_MINUTE', '60')),
+        BLOCKCHAIR_API_KEY=os.getenv('BLOCKCHAIR_API_KEY'),
+        MEMPOOL_SPACE_API_URL=os.getenv('MEMPOOL_SPACE_API_URL', 'https://mempool.space/api')
+    )
+
 # Global config instance
-config = Config()
+config = load_config()
