@@ -383,10 +383,10 @@ async def get_server_status() -> Dict[str, Any]:
 async def health_check():
     """Health check endpoint."""
     try:
-        status = await get_server_status()
+        # Simple health check that doesn't require Bitcoin connection
         return {
             "status": "healthy",
-            "bitcoin_connected": status["bitcoin_node"]["connected"],
+            "message": "Bitcoin MCP Server is running",
             "timestamp": datetime.utcnow().isoformat()
         }
     except Exception as e:
