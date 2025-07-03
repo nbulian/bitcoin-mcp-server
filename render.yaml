@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: bitcoin-mcp-server
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: chmod +x start.sh && ./start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 8000
+      - key: DEBUG
+        value: false
+      - key: BITCOIN_NETWORK
+        value: mainnet
+      - key: REQUEST_TIMEOUT
+        value: 30
+      - key: MAX_RETRIES
+        value: 3
+      - key: RATE_LIMIT_PER_MINUTE
+        value: 60
+      - key: MEMPOOL_SPACE_API_URL
+        value: https://mempool.space/api
+    # Add your Bitcoin RPC credentials as environment variables
+    # You'll need to set these in the Render dashboard
+    # - key: BITCOIN_RPC_URL
+    #   value: https://your-bitcoin-node-url/
+    # - key: BITCOIN_RPC_USER
+    #   value: your-username
+    # - key: BITCOIN_RPC_PASSWORD
+    #   value: your-password 
