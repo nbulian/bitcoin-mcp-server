@@ -38,6 +38,15 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Bitcoin MCP Server...")
     
+    # Initialize market tools (independent of Bitcoin RPC)
+    try:
+        market_tools = MarketTools()
+        logger.info("Market tools initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize market tools: {e}")
+        market_tools = None
+    
+    # Initialize Bitcoin RPC client and related tools
     try:
         bitcoin_client = BitcoinRPCClient()
         await bitcoin_client.__aenter__()
@@ -45,7 +54,6 @@ async def lifespan(app: FastAPI):
         blockchain_tools = BlockchainTools(bitcoin_client)
         network_tools = NetworkTools(bitcoin_client)
         address_tools = AddressTools(bitcoin_client)
-        market_tools = MarketTools()
         
         logger.info("Bitcoin RPC client initialized successfully")
     except Exception as e:
@@ -55,7 +63,6 @@ async def lifespan(app: FastAPI):
         blockchain_tools = None
         network_tools = None
         address_tools = None
-        market_tools = None
     
     logger.info(f"Bitcoin MCP Server started on {config.HOST}:{config.PORT}")
     
