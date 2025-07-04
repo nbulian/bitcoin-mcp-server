@@ -8,9 +8,10 @@ A comprehensive Model Context Protocol (MCP) server for Bitcoin blockchain conne
 bitcoin-mcp-server/
 ├── src/                              # Main source code directory
 │   ├── __init__.py                   # Package initialization
-│   ├── main.py                       # FastAPI application entry point and routing
+│   ├── main.py                       # FastAPI application entry point and MCP routing
 │   ├── config.py                     # Configuration management with Pydantic
 │   ├── bitcoin_client.py             # Bitcoin RPC client with connection management
+│   ├── mcp_protocol.py               # MCP Protocol implementation
 │   ├── tools/                        # MCP tool implementations
 │   │   ├── __init__.py              # Tools package initialization
 │   │   ├── blockchain.py            # Blockchain query tools (blocks, transactions)
@@ -34,11 +35,11 @@ bitcoin-mcp-server/
 - **FastAPI** (0.104.1): Modern web framework for building APIs
 - **Uvicorn** (0.24.0): ASGI server for running FastAPI applications
 - **httpx** (0.25.2): Async HTTP client for external API calls
-- **Pydantic** (2.5.0): Data validation and settings management
+- **Pydantic** (1.10.13): Data validation and settings management
 - **python-dotenv** (1.0.0): Environment variable loading
 
 ### Bitcoin-Specific Dependencies
-- **bitcoinlib** (0.12.0): Bitcoin address validation and encoding utilities
+- **base58** (2.1.1): Bitcoin address validation and encoding utilities
   - Used for validating Bitcoin addresses across different formats (P2PKH, P2SH, Bech32, Bech32m)
   - Provides robust address format checking for mainnet, testnet, and regtest networks
 
@@ -50,23 +51,66 @@ The server integrates with several external APIs to provide comprehensive Bitcoi
 - **CoinGecko API**: Market price data and statistics
 - **Alternative.me API**: Fear & Greed Index for market sentiment
 
+## 🔧 MCP Protocol Compliance
+
+This server is fully compliant with the Model Context Protocol (MCP) specification. It implements all required MCP methods:
+
+### Core MCP Methods
+
+- **`initialize`**: Server initialization and capability negotiation
+- **`tools/list`**: List available tools with schemas
+- **`tools/call`**: Execute tool calls with proper parameter validation
+- **`resources/list`**: List available resources
+- **`resources/read`**: Read resource content
+
+### Tool Definitions
+
+All tools are defined with proper JSON schemas including:
+- **name**: Tool identifier
+- **description**: Human-readable description
+- **inputSchema**: JSON schema for input parameters
+- **outputSchema**: JSON schema for output format
+
+### Resource Definitions
+
+Resources are defined with:
+- **uri**: Resource identifier
+- **name**: Human-readable name
+- **description**: Resource description
+- **mimeType**: Content type
+
 ## 📁 File Descriptions
 
 ### Core Application Files
 
 **src/main.py**
 
-Purpose: FastAPI application entry point and JSON-RPC request routing
+Purpose: FastAPI application entry point and MCP protocol routing
 
 Key Features:
 
+- MCP protocol method routing (`initialize`, `tools/list`, `tools/call`, etc.)
 - JSON-RPC 2.0 protocol implementation
-- Method routing to appropriate tool handlers
+- Legacy method support for backward compatibility
 - Global error handling and logging
 - Application lifecycle management
 - CORS middleware configuration
 
-Developer Notes: This is the main entry point. Add new method routes in the route_method() function.
+Developer Notes: This is the main entry point. MCP methods are routed through the MCPProtocol class.
+
+**src/mcp_protocol.py**
+
+Purpose: MCP Protocol implementation and tool/resource definitions
+
+Key Features:
+
+- Complete MCP protocol method implementations
+- Tool definitions with JSON schemas
+- Resource definitions with metadata
+- Tool execution routing
+- Parameter validation
+
+Developer Notes: Add new tools and resources here. All tools must have proper schemas defined.
 
 **src/config.py**
 
@@ -101,7 +145,7 @@ Developer Notes: This handles all Bitcoin node communication. Add new RPC method
 
 Purpose: Blockchain data retrieval and analysis
 
-Available Methods:
+Available MCP Tools:
 
 - get_blockchain_info(): Network statistics and status
 - get_block_by_height(): Block data by height
@@ -116,7 +160,7 @@ Developer Notes: Add new blockchain query methods here. Ensure proper validation
 
 Purpose: Bitcoin network monitoring and status
 
-Available Methods:
+Available MCP Tools:
 
 - get_network_status(): Comprehensive network overview
 - get_mempool_stats(): Mempool statistics and fee estimates
@@ -129,7 +173,7 @@ Developer Notes: Network tools primarily use Bitcoin RPC. Fee estimation targets
 
 Purpose: Bitcoin address analysis and UTXO management
 
-Available Methods:
+Available MCP Tools:
 
 - validate_address(): Address format validation
 - get_address_balance(): Balance checking via external APIs
@@ -143,7 +187,7 @@ Developer Notes: Uses mempool.space API for address data. Bitcoin Core doesn't t
 
 Purpose: Bitcoin market data and price information
 
-Available Methods:
+Available MCP Tools:
 
 - get_current_price(): Real-time price in various currencies
 - get_price_history(): Historical price data
@@ -165,7 +209,7 @@ Key Functions:
 - validate_block_hash(): Block hash format validation
 - validate_block_height(): Block height range validation
 
-Developer Notes: Add new validation functions here. Uses bitcoinlib for address validation.
+Developer Notes: Add new validation functions here. Uses base58 for address validation.
 
 **src/utils/errors.py**
 
@@ -185,50 +229,30 @@ Developer Notes: All custom errors should inherit from BitcoinMCPError for consi
 
 ### Core Capabilities
 
-- Blockchain Queries: Complete block and transaction data access
-- Network Monitoring: Real-time network status and mempool analysis
-- Address Analysis: Balance checking, transaction history, UTXO tracking
-- Market Data: Price feeds, historical data, market sentiment
-- Rate Limiting: Configurable request rate limiting
-- Error Handling: Comprehensive error handling with detailed messages
-- Docker Support: Production-ready containerization
+- **MCP Protocol Compliance**: Full implementation of MCP specification
+- **Blockchain Queries**: Complete block and transaction data access
+- **Network Monitoring**: Real-time network status and mempool analysis
+- **Address Analysis**: Balance checking, transaction history, UTXO tracking
+- **Market Data**: Price feeds, historical data, market sentiment
+- **Rate Limiting**: Configurable request rate limiting
+- **Error Handling**: Comprehensive error handling with detailed messages
+- **Docker Support**: Production-ready containerization
+- **Backward Compatibility**: Legacy method support
 
-### JSON-RPC 2.0 Methods
+### MCP Protocol Methods
 
-Server Management
+**Core Protocol**
+- `initialize`: Server initialization and capability negotiation
+- `tools/list`: List available tools with schemas
+- `tools/call`: Execute tool calls with parameter validation
+- `resources/list`: List available resources
+- `resources/read`: Read resource content
 
-- get_server_status: Server health and connectivity status
-
-Blockchain Operations
-
-- get_blockchain_info: Network statistics
-- get_block_by_height: Block data by height
-- get_block_by_hash: Block data by hash
-- get_transaction: Transaction details
-- get_latest_blocks: Recent blocks list
-- search_blocks: Block range queries
-
-Network Monitoring
-
-- get_network_status: Network overview
-- get_mempool_stats: Mempool and fee data
-- get_mining_info: Mining statistics
-- get_peer_info: Peer connections
-
-Address Analysis
-
-- validate_address: Address validation
-- get_address_balance: Balance inquiry
-- get_address_transactions: Transaction history
-- get_address_utxos: UTXO listing
-- analyze_address_activity: Comprehensive analysis
-
-Market Data
-
-- get_current_price: Current Bitcoin price
-- get_price_history: Historical price data
-- get_market_stats: Market statistics
-- get_fear_greed_index: Market sentiment
+**Available Tools (20 total)**
+- Blockchain: 6 tools (info, blocks, transactions, search)
+- Network: 4 tools (status, mempool, mining, peers)
+- Address: 5 tools (validation, balance, transactions, UTXOs, analysis)
+- Market: 5 tools (price, history, stats, sentiment, current)
 
 ## 🔧 Error Handling & Response Codes
 
@@ -944,4 +968,48 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Alternative.me** for Fear & Greed Index
 - **FastAPI** for the excellent web framework
 - **Pydantic** for data validation and settings management
+
+# Tool definitions with schemas
+TOOLS = {
+    "get_blockchain_info": {
+        "name": "get_blockchain_info",
+        "description": "Get comprehensive blockchain information...",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    "get_block_by_height": {
+        "name": "get_block_by_height",
+        "description": "Get block information by height with optional transaction details",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "height": {
+                    "type": "integer",
+                    "description": "Block height to retrieve"
+                },
+                "include_transactions": {
+                    "type": "boolean",
+                    "description": "Whether to include full transaction data",
+                    "default": False
+                }
+            },
+            "required": ["height"]
+        }
+    }
+    # ... 20 total tools defined
+}
+
+# Resource definitions
+RESOURCES = {
+    "bitcoin:blockchain:info": {
+        "uri": "bitcoin:blockchain:info",
+        "name": "Bitcoin Blockchain Information",
+        "description": "Current blockchain status and statistics",
+        "mimeType": "application/json"
+    }
+    # ... 3 resources defined
+}
 

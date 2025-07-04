@@ -15,6 +15,7 @@ from .tools.network import NetworkTools
 from .tools.address import AddressTools
 from .tools.market import MarketTools
 from .utils.errors import BitcoinMCPError, ValidationError
+from .mcp_protocol import MCPProtocol
 
 # Configure logging
 logging.basicConfig(
@@ -23,17 +24,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global tool instances
+# Global instances
 bitcoin_client = None
 blockchain_tools = None
 network_tools = None
 address_tools = None
 market_tools = None
+mcp_protocol = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global bitcoin_client, blockchain_tools, network_tools, address_tools, market_tools
+    global bitcoin_client, blockchain_tools, network_tools, address_tools, market_tools, mcp_protocol
     
     # Startup
     logger.info("Starting Bitcoin MCP Server...")
@@ -63,6 +65,9 @@ async def lifespan(app: FastAPI):
         blockchain_tools = None
         network_tools = None
         address_tools = None
+    
+    # Initialize MCP Protocol
+    mcp_protocol = MCPProtocol(blockchain_tools, network_tools, address_tools, market_tools)
     
     logger.info(f"Bitcoin MCP Server started on {config.HOST}:{config.PORT}")
     
@@ -190,8 +195,24 @@ async def handle_rpc(request: Request):
 async def route_method(method: str, params: Dict[str, Any]) -> Any:
     """Route method calls to appropriate handlers."""
     
-    # Server status methods
-    if method == "get_server_status":
+    # MCP Protocol Methods
+    if method == "initialize":
+        return await mcp_protocol.initialize(params)
+    
+    elif method == "tools/list":
+        return await mcp_protocol.list_tools()
+    
+    elif method == "tools/call":
+        return await mcp_protocol.call_tool(params)
+    
+    elif method == "resources/list":
+        return await mcp_protocol.list_resources(params)
+    
+    elif method == "resources/read":
+        return await mcp_protocol.read_resource(params)
+    
+    # Legacy methods for backward compatibility
+    elif method == "get_server_status":
         return await get_server_status()
     
     # Check if Bitcoin tools are available for blockchain/network/address methods
@@ -208,7 +229,7 @@ async def route_method(method: str, params: Dict[str, Any]) -> Any:
         if not market_tools:
             raise ValidationError("Market tools not available. Please check your configuration.")
     
-    # Blockchain methods
+    # Blockchain methods (legacy)
     elif method == "get_blockchain_info":
         return await blockchain_tools.get_blockchain_info()
     
@@ -243,7 +264,7 @@ async def route_method(method: str, params: Dict[str, Any]) -> Any:
             raise ValidationError("Missing 'start_height' or 'end_height' parameter")
         return await blockchain_tools.search_blocks(start_height, end_height)
     
-    # Network methods
+    # Network methods (legacy)
     elif method == "get_network_status":
         return await network_tools.get_network_status()
     
@@ -256,7 +277,7 @@ async def route_method(method: str, params: Dict[str, Any]) -> Any:
     elif method == "get_peer_info":
         return await network_tools.get_peer_info()
     
-    # Address methods
+    # Address methods (legacy)
     elif method == "validate_address":
         address = params.get("address")
         if not address:
@@ -288,7 +309,7 @@ async def route_method(method: str, params: Dict[str, Any]) -> Any:
             raise ValidationError("Missing 'address' parameter", "address")
         return await address_tools.analyze_address_activity(address)
     
-    # Market methods
+    # Market methods (legacy)
     elif method == "get_current_price":
         currency = params.get("currency", "usd")
         return await market_tools.get_current_price(currency)
@@ -353,7 +374,24 @@ async def get_server_status() -> Dict[str, Any]:
             "transaction_lookup": True,
             "utxo_tracking": True
         },
+        "mcp_protocol": {
+            "version": "2024-11-05",
+            "methods": [
+                "initialize",
+                "tools/list",
+                "tools/call", 
+                "resources/list",
+                "resources/read"
+            ]
+        },
         "available_methods": [
+            # MCP Protocol methods
+            "initialize",
+            "tools/list",
+            "tools/call",
+            "resources/list", 
+            "resources/read",
+            
             # Server methods
             "get_server_status",
             
@@ -418,7 +456,17 @@ async def root():
             "health": "GET /health",
             "info": "GET /"
         },
-        "documentation": "Send JSON-RPC 2.0 requests to the root endpoint"
+        "documentation": "Send JSON-RPC 2.0 requests to the root endpoint",
+        "mcp_protocol": {
+            "version": "2024-11-05",
+            "methods": [
+                "initialize",
+                "tools/list", 
+                "tools/call",
+                "resources/list",
+                "resources/read"
+            ]
+        }
     }
 
 if __name__ == "__main__":
