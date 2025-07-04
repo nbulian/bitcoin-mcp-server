@@ -32,10 +32,9 @@ class MarketTools:
                 "include_last_updated_at": "true"
             }
             
-            async with self.external_client as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
+            response = await self.external_client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
             
             bitcoin_data = data.get("bitcoin", {})
             currency_upper = currency.upper()
@@ -43,9 +42,9 @@ class MarketTools:
             return {
                 "currency": currency_upper,
                 "price": bitcoin_data.get(currency.lower()),
-                "market_cap": bitcoin_data.get(f"market_cap_{currency.lower()}"),
-                "volume_24h": bitcoin_data.get(f"vol_24h_{currency.lower()}"),
-                "change_24h": bitcoin_data.get(f"price_change_percentage_24h_{currency.lower()}"),
+                "market_cap": bitcoin_data.get(f"usd_market_cap"),
+                "volume_24h": bitcoin_data.get(f"usd_24h_vol"),
+                "change_24h": bitcoin_data.get(f"usd_24h_change"),
                 "last_updated": bitcoin_data.get("last_updated_at")
             }
         except httpx.HTTPError as e:
@@ -75,10 +74,9 @@ class MarketTools:
                 "interval": "daily" if days > 30 else "hourly"
             }
             
-            async with self.external_client as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
+            response = await self.external_client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
             
             prices = data.get("prices", [])
             market_caps = data.get("market_caps", [])
@@ -130,10 +128,9 @@ class MarketTools:
                 "sparkline": "false"
             }
             
-            async with self.external_client as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
+            response = await self.external_client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
             
             market_data = data.get("market_data", {})
             
@@ -185,10 +182,9 @@ class MarketTools:
         try:
             url = "https://api.alternative.me/fng/?limit=30"
             
-            async with self.external_client as client:
-                response = await client.get(url)
-                response.raise_for_status()
-                data = response.json()
+            response = await self.external_client.get(url)
+            response.raise_for_status()
+            data = response.json()
             
             current = data.get("data", [{}])[0]
             historical = data.get("data", [])
